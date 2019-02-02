@@ -14,7 +14,7 @@ repository = "https://github.com/lemonrock/magic-ring-buffer.git"
 exclude = ["*"]
 include = ["README.md", "LICENSE", "COPYRIGHT", "src/**/*.rs", "Cargo.toml", "rustfmt.toml", "clippy.toml"]
 readme = "README.md"
-publish = false
+publish = true
 version = "0.1.0"
 
 [target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
