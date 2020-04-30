@@ -15,10 +15,14 @@ exclude = ["*"]
 include = ["README.md", "LICENSE", "COPYRIGHT", "src/**/*.rs", "Cargo.toml", "rustfmt.toml", "clippy.toml"]
 readme = "README.md"
 publish = true
-version = "0.1.0"
+edition = "2018"
+version = "0.2.0"
 
-[target.'cfg(any(target_os = "android", target_os = "linux"))'.dependencies]
+[dependencies]
+static_assertions = "^1.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
 errno = "^0.2"
-file-descriptors = "^0.8.6"
-libc = "^0.2.44"
+libc = { version = "^0.2.65", features = ["const-extern-fn", "extra_traits", "std"] }
 likely = "^0.1"
+linux-support = "0.0.0"

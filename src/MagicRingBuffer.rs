@@ -44,10 +44,8 @@ impl MagicRingBuffer
 		let amount_we_want_to_write = Size::from(amount_we_want_to_write);
 		debug_assert!(amount_we_want_to_write <= self.unmirrored_buffer_size(), "Can not write amounts large than then ring buffer's size");
 
-
 		// Get a new offset to write to.
 		let (current_writer_state_write_offset, next_writer_state_write_offset) = self.writer_offset.fetch_add(amount_we_want_to_write);
-
 
 		// We exit this loop when the reader has made enough forward progress to free up space to accommodate our write (and any predecessors on other threads).
 		let mut current_unread_offset = loop
@@ -71,7 +69,6 @@ impl MagicRingBuffer
 
 		// Write data.
 		writer(self.write_to_buffer(current_writer_state_write_offset, amount_we_want_to_write));
-
 
 		// Serialize order of writers so that they only commit their writes in ascending order with no 'holes', ie later before earlier.
 		loop

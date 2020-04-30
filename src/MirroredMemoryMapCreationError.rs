@@ -34,7 +34,7 @@ impl Display for MirroredMemoryMapCreationError
 impl error::Error for MirroredMemoryMapCreationError
 {
 	#[inline(always)]
-	fn source(&self) ->  Option<&(error::Error + 'static)>
+	fn source(&self) ->  Option<&(dyn error::Error + 'static)>
 	{
 		use self::MirroredMemoryMapCreationError::*;
 
