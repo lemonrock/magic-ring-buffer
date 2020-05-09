@@ -5,140 +5,67 @@
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub(crate) struct MirroredMemoryMap
 {
-	address: VirtualAddress,
-	length: Size,
-	unmirrored_buffer_size: Size,
-}
-
-impl Drop for MirroredMemoryMap
-{
-	#[inline(always)]
-	fn drop(&mut self)
-	{
-		unsafe { munmap(self.address.0, self.length.into()) };
-	}
+	mapped_memory: MappedMemory,
+	buffer_size: NonZeroU64,
 }
 
 impl MirroredMemoryMap
 {
 	#[inline(always)]
-	pub(crate) fn allocate_mirrored_and_not_swappable_from_dev_shm(file_extension: &str, buffer_size_not_page_aligned: Size) -> Result<Self, MirroredMemoryMapCreationError>
+	pub(crate) fn new(defaults: &DefaultPageSizeAndHugePageSizes, buffer_size_not_page_aligned: NonZeroU64, page_size: PageSizeOrHugePageSize) -> Result<Self, MirroredMemoryMapCreationError>
 	{
-		Self::allocate_mirrored_and_not_swappable("/dev/shm", file_extension, buffer_size_not_page_aligned)
-	}
-	
-	pub(crate) fn allocate_mirrored_and_not_swappable(temporary_directory_path: impl AsRef<Path>, file_extension: &str, buffer_size_not_page_aligned: Size) -> Result<Self, MirroredMemoryMapCreationError>
-	{
-		debug_assert_ne!(file_extension.len(), 0, "file_extension can not be empty");
-		debug_assert_ne!(buffer_size_not_page_aligned, Size::default(), "buffer_size_not_page_aligned can not be zero");
-		
-		let temporary_file = RemovedTemporaryFileDescriptor::create_temporary_file_and_remove_it(temporary_directory_path, file_extension)?;
-		temporary_file.truncate(buffer_size_not_page_aligned)?;
+		const non_unique_name_for_debugging_purposes: ConstCStr = ConstCStr(b"mirror\0");
+		const allow_sealing_operations: bool = false;
 
-		let this = Self::map_using_file(buffer_size_not_page_aligned, &temporary_file)?;
-		
-		Ok(this)
-	}
-
-	pub(crate) fn map_using_file(buffer_size_not_page_aligned: Size, temporary_file: &RemovedTemporaryFileDescriptor) -> Result<Self, MirroredMemoryMapCreationError>
-	{
-		let buffer_size = buffer_size_not_page_aligned.round_up_to_page_size();
-		let mirror_length = buffer_size * 2;
-
-		let address = Self::memory_map(VirtualAddress::default(), mirror_length, PROT_NONE, MAP_NORESERVE | MAP_ANONYMOUS | MAP_PRIVATE, None, 0)?;
-		let this = Self
+		let buffer_size = page_size.non_zero_number_of_bytes_rounded_up_to_multiple_of_page_size(buffer_size_not_page_aligned);
+		use self::PageSizeOrHugePageSize::*;
+		let huge_page_size = match page_size
 		{
-			address,
-			length: mirror_length,
-			unmirrored_buffer_size: buffer_size,
+			PageSize(_) => None,
+			HugePageSize(huge_page_size) => Some(Some(huge_page_size)),
 		};
-		debug_assert!(address.is_not_null(), "Memory mapping address is null");
 
-		const ProtectionConstants: i32 = PROT_READ | PROT_WRITE;
-		const MapConstants: i32 = MAP_NORESERVE | MAP_FIXED | MAP_SHARED;
+		let (memory_file_descriptor, _huge_page_size) = MemoryFileDescriptor::open_anonymous_memory_as_file(non_unique_name_for_debugging_purposes.as_cstr(), allow_sealing_operations, huge_page_size, defaults)?;
+		memory_file_descriptor.deref().set_len(buffer_size.get())?;
 
-		let address_of_real_memory = Self::memory_map(address, buffer_size, ProtectionConstants, MapConstants, Some(&temporary_file), 0)?;
-		debug_assert_eq!(address, address_of_real_memory, "First fixed mapping failed");
+		let mirror_length = unsafe { NonZeroU64::new_unchecked(buffer_size.get() * 2) };
 
-		let address_of_mirrored_memory = Self::memory_map(Self::mirror_address(address, buffer_size), buffer_size, ProtectionConstants, MapConstants, Some(&temporary_file), 0)?;
-		debug_assert_eq!(address, address_of_mirrored_memory, "Second fixed mapping failed");
+		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::Any { constrain_to_first_2Gb: false }, Protection::Unaccessible, Sharing::Private, huge_page_size, false, false, &defaults)?;
 
-		let _memory_locked = Self::try_to_memory_lock(address, mirror_length);
-
-		Ok(this)
-	}
-
-	#[inline(always)]
-	fn memory_map(address: VirtualAddress, length: Size, protection: i32, flags: i32, temporary_file: Option<&RemovedTemporaryFileDescriptor>, offset: usize) -> Result<VirtualAddress, MirroredMemoryMapCreationError>
-	{
-		let address = unsafe { mmap(address.0, length.into(), protection, flags, RemovedTemporaryFileDescriptor::into(temporary_file), offset as i64) };
-
-		if likely!(address != MAP_FAILED)
+		// The logic above ensure a memory reservation of twice the size of the anonymous file.
 		{
-			Ok(VirtualAddress(address))
+			let first = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults)?;
+			forget(second);
+			let second = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() + buffer_size }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults)?;
+			forget(second);
 		}
-		else
+
+		loop
 		{
-			use self::MirroredMemoryMapCreationError::*;
-
-			Err
-			(
-				match errno().0
-				{
-					ENFILE => PerProcessLimitOnNumberOfFileDescriptorsWouldBeExceeded,
-					ENOMEM => KernelWouldBeOutOfMemory,
-
-					EAGAIN => panic!("File locked (or too much memory has been locked)"),
-					EBADF => panic!("`fd` is not a valid file descriptor (and `MAP_ANONYMOUS` was not set)"),
-					EACCES => panic!(" A file descriptor refers to a non-regular file; or `MAP_PRIVATE` was requested, but `fd` is not open for reading; or `MAP_SHARED` was requested and `PROT_WRITE` is set, but `fd` is not open for read/write (`O_RDWR`) mode; or `PROT_WRITE` is set, but the file is append-only"),
-					EINVAL => panic!("`addr`, `length` or `offset` were too large or not page aligned, or `length` was zero, or `flags` contained either both or or none of `MAP_PRIVATE` and `MAP_SHARED`"),
-					ENODEV => panic!("The underlying file system of the specified file does not support memory mapping"),
-					EPERM => panic!("The `prot` argument asks for `PROT_EXEC` but the mapped area belongs to a file on a file system that was mounted `no-exec`"),
-					ETXTBSY => panic!("MAP_DENYWRITE was set but the object specified by `fd` is open for writing"),
-					EOVERFLOW => panic!("On 32-bit architecture together with the large file extension the number of pages used for length plus number of pages used for offset would overflow a 32-bit unsigned long"),
-
-					_ => unreachable!(),
-				}
-			)
-		}
-	}
-	
-	#[inline(always)]
-	fn try_to_memory_lock(address: VirtualAddress, length: Size) -> bool
-	{
-		let result = unsafe { mlock(address.0, length.into()) };
-
-		if likely!(result == 0)
-		{
-			true
-		}
-		else if likely!(result == -1)
-		{
-			let error = io::Error::last_os_error();
-			match error.raw_os_error().unwrap()
+			let locked = mapped_memory.lock(false)?;
+			if locked
 			{
-				ENOMEM | EAGAIN | EPERM => false,
-
-				EINVAL => panic!("EINVAL for memory lock"),
-
-				_ => unreachable!(),
+				continue
+			}
+			else
+			{
+				break
 			}
 		}
-		else
-		{
-			unreachable!()
-		}
-	}
-	
-	#[inline(always)]
-	fn mirror_address(address: VirtualAddress, offset: Size) -> VirtualAddress
-	{
-		address.add(offset)
+
+		Ok
+		(
+			MirroredMemoryMap
+			{
+				mapped_memory,
+				buffer_size,
+			}
+		)
 	}
 
 	#[inline(always)]
 	fn pointer(&self, offset: OnlyEverIncreasesMonotonicallyOffset) -> *mut u8
 	{
-		self.address.add(offset % self.unmirrored_buffer_size).into()
+		self.0.virtual_address().add(offset % self.buffer_size).into()
 	}
 }

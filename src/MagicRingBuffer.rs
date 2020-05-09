@@ -15,8 +15,10 @@ pub struct MagicRingBuffer
 impl MagicRingBuffer
 {
 	/// Creates a new instance.
+	///
+	/// Rounds `buffer_size_not_page_aligned` to page size.
 	#[inline(always)]
-	pub fn allocate_mirrored_and_not_swappable_from_dev_shm(file_extension: &str, buffer_size_not_page_aligned: usize) -> Result<Self, MirroredMemoryMapCreationError>
+	pub fn allocate(defaults: &DefaultPageSizeAndHugePageSizes, buffer_size_not_page_aligned: NonZeroU64, page_size: PageSizeOrHugePageSize) -> Result<Self, MirroredMemoryMapCreationError>
 	{
 		Ok
 		(
@@ -25,7 +27,7 @@ impl MagicRingBuffer
 				writer_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
 				unread_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
 				read_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
-				mirrored_memory_map: MirroredMemoryMap::allocate_mirrored_and_not_swappable_from_dev_shm(file_extension, Size::from(buffer_size_not_page_aligned))?,
+				mirrored_memory_map: MirroredMemoryMap::new(defaults, buffer_size_not_page_aligned, page_size)?,
 			}
 		)
 	}
@@ -115,7 +117,7 @@ impl MagicRingBuffer
 	#[inline(always)]
 	fn unmirrored_buffer_size(&self) -> Size
 	{
-		self.mirrored_memory_map.unmirrored_buffer_size
+		self.mirrored_memory_map.buffer_size
 	}
 
 	#[inline(always)]

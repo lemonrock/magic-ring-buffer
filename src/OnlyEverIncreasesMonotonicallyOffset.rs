@@ -6,14 +6,14 @@
 #[repr(C, align(8))]
 struct OnlyEverIncreasesMonotonicallyOffset(u64);
 
-impl Add<Size> for OnlyEverIncreasesMonotonicallyOffset
+impl Add<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
 {
 	type Output = Self;
 
 	#[inline(always)]
-	fn add(self, rhs: Size) -> Self::Output
+	fn add(self, rhs: NonZeroU64) -> Self::Output
 	{
-		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs.0)
+		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs.get())
 	}
 }
 
@@ -37,13 +37,13 @@ impl Sub<Self> for OnlyEverIncreasesMonotonicallyOffset
 	}
 }
 
-impl Rem<Size> for OnlyEverIncreasesMonotonicallyOffset
+impl Rem<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
 {
 	type Output = Size;
 
 	#[inline(always)]
-	fn rem(self, rhs: Size) -> Self::Output
+	fn rem(self, rhs: NonZeroU64) -> Self::Output
 	{
-		Size(self.0 % rhs.0)
+		Size(self.0 % rhs.rhs.get())
 	}
 }

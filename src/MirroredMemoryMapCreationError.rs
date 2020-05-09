@@ -9,17 +9,8 @@ pub enum MirroredMemoryMapCreationError
 	/// Could not open memory mapping file.
 	CouldNotOpenMemoryMappingFile(io::Error),
 
-	/// Could not unlink memory mapping file.
-	CouldNotUnlinkMemoryMappingFile(io::Error),
-
 	/// Could not truncate memory mapping file.
 	CouldNotTruncateMemoryMappingFile(io::Error),
-
-	/// The per-process limit on the number of open file descriptors would be exceeded.
-	PerProcessLimitOnNumberOfFileDescriptorsWouldBeExceeded,
-
-	/// Kernel would be out of memory or the process limit on the number of memory mappings has been reached.
-	KernelWouldBeOutOfMemory,
 }
 
 impl Display for MirroredMemoryMapCreationError

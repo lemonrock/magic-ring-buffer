@@ -63,7 +63,7 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use std::io;
 use std::io::ErrorKind;
-use std::ops::Add;
+use std::ops::{Add, Deref};
 use std::ops::Mul;
 use std::ops::Rem;
 use std::ops::Sub;
@@ -76,14 +76,17 @@ use std::slice::from_raw_parts_mut;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::*;
 use std::sync::atomic::spin_loop_hint;
+use linux_support::file_descriptors::memfd::MemoryFileDescriptor;
+use linux_support::memory::huge_pages::{HugePageSize, DefaultPageSizeAndHugePageSizes, PageSizeOrHugePageSize};
+use linux_support::strings::ConstCStr;
+use linux_support::memory::mapping::{MappedMemory, AddressHint, Protection, Sharing};
+use std::mem::forget;
 
 
 include!("CompareExchangeOnlyEverIncreasesMonotonicallyOffset.rs");
 include!("MagicRingBuffer.rs");
 include!("MirroredMemoryMap.rs");
 include!("MirroredMemoryMapCreationError.rs");
-include!("RemovedTemporaryFileDescriptor.rs");
 include!("OnlyEverIncreasesMonotonicallyOffset.rs");
-include!("Size.rs");
 include!("VirtualAddress.rs");
 
