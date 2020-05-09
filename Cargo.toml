@@ -22,7 +22,5 @@ version = "0.2.0"
 static_assertions = "^1.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-errno = "^0.2"
-libc = { version = "^0.2.65", features = ["const-extern-fn", "extra_traits", "std"] }
 likely = "^0.1"
 linux-support = { path = "../linux-support", version = "0.0.2" }

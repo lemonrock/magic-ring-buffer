@@ -17,6 +17,17 @@ impl Add<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
 	}
 }
 
+impl Add<Size> for OnlyEverIncreasesMonotonicallyOffset
+{
+	type Output = Self;
+
+	#[inline(always)]
+	fn add(self, rhs: Size) -> Self::Output
+	{
+		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs.0)
+	}
+}
+
 impl Into<usize> for OnlyEverIncreasesMonotonicallyOffset
 {
 	#[inline(always)]
@@ -37,13 +48,13 @@ impl Sub<Self> for OnlyEverIncreasesMonotonicallyOffset
 	}
 }
 
-impl Rem<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
+impl Rem<Size> for OnlyEverIncreasesMonotonicallyOffset
 {
 	type Output = Size;
 
 	#[inline(always)]
-	fn rem(self, rhs: NonZeroU64) -> Self::Output
+	fn rem(self, rhs: Size) -> Self::Output
 	{
-		Size(self.0 % rhs.rhs.get())
+		Size(self.0 % rhs.0)
 	}
 }

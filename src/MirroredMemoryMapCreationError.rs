@@ -6,11 +6,29 @@
 #[derive(Debug)]
 pub enum MirroredMemoryMapCreationError
 {
-	/// Could not open memory mapping file.
-	CouldNotOpenMemoryMappingFile(io::Error),
+	#[allow(missing_docs)]
+	CouldNotOpenMemFd(CreationError),
 
-	/// Could not truncate memory mapping file.
-	CouldNotTruncateMemoryMappingFile(io::Error),
+	#[allow(missing_docs)]
+	CouldNotSetLength(io::Error),
+
+	#[allow(missing_docs)]
+	CouldNotCreateFirstMemoryMapping(CreationError),
+
+	#[allow(missing_docs)]
+	CouldNotCreateSecondMemoryMapping(CreationError),
+
+	#[allow(missing_docs)]
+	CouldNotCreateThirdMemoryMapping(CreationError),
+
+	#[allow(missing_docs)]
+	CouldNotLockMemory(io::Error),
+
+	#[allow(missing_docs)]
+	CouldNotLockAllMemory,
+
+	#[allow(missing_docs)]
+	CouldNotAdviseMemory(io::Error),
 }
 
 impl Display for MirroredMemoryMapCreationError
@@ -31,15 +49,21 @@ impl error::Error for MirroredMemoryMapCreationError
 
 		match self
 		{
-			&CouldNotOpenMemoryMappingFile(ref error) => Some(error),
+			&CouldNotOpenMemFd(ref error) => Some(error),
 
-			&CouldNotUnlinkMemoryMappingFile(ref error) => Some(error),
+			&CouldNotSetLength(ref error) => Some(error),
 
-			&CouldNotTruncateMemoryMappingFile(ref error) => Some(error),
+			&CouldNotCreateFirstMemoryMapping(ref error) => Some(error),
 
-			&PerProcessLimitOnNumberOfFileDescriptorsWouldBeExceeded => None,
+			&CouldNotCreateSecondMemoryMapping(ref error) => Some(error),
 
-			&KernelWouldBeOutOfMemory => None,
+			&CouldNotCreateThirdMemoryMapping(ref error) => Some(error),
+
+			&CouldNotLockMemory(ref error) => Some(error),
+
+			&CouldNotLockAllMemory => None,
+
+			&CouldNotAdviseMemory(ref error) => Some(error),
 		}
 	}
 }

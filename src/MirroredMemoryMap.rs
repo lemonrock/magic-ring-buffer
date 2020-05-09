@@ -6,59 +6,54 @@
 pub(crate) struct MirroredMemoryMap
 {
 	mapped_memory: MappedMemory,
-	buffer_size: NonZeroU64,
+	buffer_size: Size,
 }
 
 impl MirroredMemoryMap
 {
 	#[inline(always)]
-	pub(crate) fn new(defaults: &DefaultPageSizeAndHugePageSizes, buffer_size_not_page_aligned: NonZeroU64, page_size: PageSizeOrHugePageSize) -> Result<Self, MirroredMemoryMapCreationError>
+	pub(crate) fn new(defaults: &DefaultPageSizeAndHugePageSizes, buffer_size_not_page_aligned: NonZeroU64, inclusive_maximum_bytes_wasted: usize) -> Result<Self, MirroredMemoryMapCreationError>
 	{
+		use self::MirroredMemoryMapCreationError::*;
+
 		const non_unique_name_for_debugging_purposes: ConstCStr = ConstCStr(b"mirror\0");
 		const allow_sealing_operations: bool = false;
 
-		let buffer_size = page_size.non_zero_number_of_bytes_rounded_up_to_multiple_of_page_size(buffer_size_not_page_aligned);
-		use self::PageSizeOrHugePageSize::*;
-		let huge_page_size = match page_size
+		let (buffer_size, huge_page_size) = match defaults.best_fit_huge_page_size_if_any(buffer_size_not_page_aligned.get() as usize, inclusive_maximum_bytes_wasted)
 		{
-			PageSize(_) => None,
-			HugePageSize(huge_page_size) => Some(Some(huge_page_size)),
+			None => (memory::PageSize::current().non_zero_number_of_bytes_rounded_up_to_multiple_of_page_size(buffer_size_not_page_aligned), None),
+			Some(huge_page_size) => (huge_page_size.non_zero_number_of_bytes_rounded_up_to_multiple_of_page_size(buffer_size_not_page_aligned), Some(Some(huge_page_size)))
 		};
 
-		let (memory_file_descriptor, _huge_page_size) = MemoryFileDescriptor::open_anonymous_memory_as_file(non_unique_name_for_debugging_purposes.as_cstr(), allow_sealing_operations, huge_page_size, defaults)?;
-		memory_file_descriptor.deref().set_len(buffer_size.get())?;
+		let (memory_file_descriptor, _huge_page_size) = MemoryFileDescriptor::open_anonymous_memory_as_file(non_unique_name_for_debugging_purposes.as_cstr(), allow_sealing_operations, huge_page_size, defaults).map_err(CouldNotOpenMemFd)?;
+		memory_file_descriptor.deref().set_len(buffer_size.get()).map_err(CouldNotSetLength)?;
 
 		let mirror_length = unsafe { NonZeroU64::new_unchecked(buffer_size.get() * 2) };
 
-		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::Any { constrain_to_first_2Gb: false }, Protection::Unaccessible, Sharing::Private, huge_page_size, false, false, &defaults)?;
+		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::any(), Protection::Unaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateFirstMemoryMapping)?;
 
 		// The logic above ensure a memory reservation of twice the size of the anonymous file.
 		{
-			let first = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults)?;
-			forget(second);
-			let second = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() + buffer_size }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults)?;
+			let first = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults).map_err(CouldNotCreateSecondMemoryMapping)?;
+			forget(first);
+			let second = MappedMemory::from_file(&memory_file_descriptor, 0, buffer_size, AddressHint::Fixed { virtual_address_required: mapped_memory.virtual_address() + buffer_size }, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults).map_err(CouldNotCreateThirdMemoryMapping)?;
 			forget(second);
 		}
 
-		loop
+		let locked_all_memory = mapped_memory.lock(MemoryLockSettings::Normal).map_err(CouldNotLockMemory)?;
+		if unlikely!(!locked_all_memory)
 		{
-			let locked = mapped_memory.lock(false)?;
-			if locked
-			{
-				continue
-			}
-			else
-			{
-				break
-			}
+			return Err(CouldNotLockAllMemory)
 		}
+
+		mapped_memory.advise(MemoryAdvice::DontFork).map_err(CouldNotAdviseMemory)?;
 
 		Ok
 		(
 			MirroredMemoryMap
 			{
 				mapped_memory,
-				buffer_size,
+				buffer_size: Size(buffer_size.get()),
 			}
 		)
 	}
@@ -66,6 +61,6 @@ impl MirroredMemoryMap
 	#[inline(always)]
 	fn pointer(&self, offset: OnlyEverIncreasesMonotonicallyOffset) -> *mut u8
 	{
-		self.0.virtual_address().add(offset % self.buffer_size).into()
+		self.mapped_memory.virtual_address().offset_in_bytes((offset % self.buffer_size).0 as usize).into()
 	}
 }
