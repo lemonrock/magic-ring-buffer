@@ -30,7 +30,7 @@ impl MirroredMemoryMap
 
 		let mirror_length = unsafe { NonZeroU64::new_unchecked(buffer_size.get() * 2) };
 
-		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::any(), Protection::Unaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateFirstMemoryMapping)?;
+		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::any(), Protection::Inaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateFirstMemoryMapping)?;
 
 		// The logic above ensure a memory reservation of twice the size of the anonymous file.
 		{
