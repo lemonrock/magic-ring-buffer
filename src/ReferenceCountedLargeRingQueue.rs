@@ -40,15 +40,25 @@ impl<Element> ReferenceCountedLargeRingQueue<Element>
 	#[inline(always)]
 	pub fn obtain<EmptyHandler: FnOnce() -> Error, Error>(&self, empty_handler: EmptyHandler) -> Result<ReferenceCountedLargeRingQueueElement<Element>, Error>
 	{
+		self.obtain_and_map(|element| element, empty_handler)
+	}
+	
+	/// Obtain and map.
+	#[inline(always)]
+	pub fn obtain_and_map<Mapper: FnOnce(ReferenceCountedLargeRingQueueElement<Element>) -> Mapped, Mapped, EmptyHandler: FnOnce() -> Error, Error>(&self, mapper: Mapper, empty_handler: EmptyHandler) -> Result<Mapped, Error>
+	{
 		self.use_large_ring_queue(|large_ring_queue|
 		{
 			large_ring_queue.obtain_and_map
 			(
-				|element| ReferenceCountedLargeRingQueueElement
-				{
-					element,
-					reference_counted_large_ring_queue: self.clone(),
-				},
+				|element| mapper
+				(
+					ReferenceCountedLargeRingQueueElement
+					{
+						element,
+						reference_counted_large_ring_queue: self.clone(),
+					},
+				),
 				empty_handler
 			)
 		})

@@ -172,7 +172,7 @@ impl<Element> LargeRingQueue<Element>
 	///
 	/// Maps dequeued element to avoid need for separate non-performant `.map()` and `.map_err()` operations.
 	#[inline(always)]
-	pub fn obtain_and_map<To, Mapper: FnOnce(NonNull<Element>) -> To, EmptyHandler: FnOnce() -> Error, Error>(&mut self, mapper: Mapper, empty_handler: EmptyHandler) -> Result<To, Error>
+	pub fn obtain_and_map<Mapper: FnOnce(NonNull<Element>) -> Mapped, Mapped, EmptyHandler: FnOnce() -> Error, Error>(&mut self, mapper: Mapper, empty_handler: EmptyHandler) -> Result<Mapped, Error>
 	{
 		debug_assert!(self.head >= self.tail);
 		
