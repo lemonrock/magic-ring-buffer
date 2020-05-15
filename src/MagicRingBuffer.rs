@@ -16,9 +16,9 @@ impl MagicRingBuffer
 {
 	/// Creates a new instance.
 	///
-	/// Rounds `buffer_size_not_page_aligned` to page size.
+	/// Rounds `preferred_buffer_size` to page size.
 	#[inline(always)]
-	pub fn allocate(defaults: &DefaultPageSizeAndHugePageSizes, buffer_size_not_page_aligned: NonZeroU64, inclusive_maximum_bytes_wasted: usize) -> Result<Self, MirroredMemoryMapCreationError>
+	pub fn allocate(defaults: &DefaultPageSizeAndHugePageSizes, preferred_buffer_size: NonZeroU64, inclusive_maximum_bytes_wasted: u64) -> Result<Self, MirroredMemoryMapCreationError>
 	{
 		Ok
 		(
@@ -27,7 +27,7 @@ impl MagicRingBuffer
 				writer_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
 				unread_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
 				read_offset: CompareExchangeOnlyEverIncreasesMonotonicallyOffset::default(),
-				mirrored_memory_map: MirroredMemoryMap::new(defaults, buffer_size_not_page_aligned, inclusive_maximum_bytes_wasted)?,
+				mirrored_memory_map: MirroredMemoryMap::new(defaults, preferred_buffer_size, inclusive_maximum_bytes_wasted)?,
 			}
 		)
 	}
@@ -117,7 +117,7 @@ impl MagicRingBuffer
 	#[inline(always)]
 	fn unmirrored_buffer_size(&self) -> Size
 	{
-		self.mirrored_memory_map.buffer_size
+		self.mirrored_memory_map.buffer_size()
 	}
 
 	#[inline(always)]

@@ -6,6 +6,14 @@
 #[derive(Debug)]
 pub enum MirroredMemoryMapCreationError
 {
+	/// ie can not exceed `2^63`.
+	#[allow(missing_docs)]
+	BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64(NonZeroU64),
+	
+	/// ie can not exceed `2^62`.
+	#[allow(missing_docs)]
+	BufferSizeRequiredMirrorSizeLargerThanTheLargestPowerOfTwoInAnU64(NonZeroU64),
+
 	#[allow(missing_docs)]
 	CouldNotOpenMemFd(CreationError),
 
@@ -17,9 +25,6 @@ pub enum MirroredMemoryMapCreationError
 
 	#[allow(missing_docs)]
 	CouldNotCreateSecondMemoryMapping(CreationError),
-
-	#[allow(missing_docs)]
-	CouldNotCreateThirdMemoryMapping(CreationError),
 
 	#[allow(missing_docs)]
 	CouldNotLockMemory(io::Error),
@@ -49,6 +54,10 @@ impl error::Error for MirroredMemoryMapCreationError
 
 		match self
 		{
+			&BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64(..) => None,
+			
+			&BufferSizeRequiredMirrorSizeLargerThanTheLargestPowerOfTwoInAnU64(..) => None,
+			
 			&CouldNotOpenMemFd(ref error) => Some(error),
 
 			&CouldNotSetLength(ref error) => Some(error),
@@ -56,8 +65,6 @@ impl error::Error for MirroredMemoryMapCreationError
 			&CouldNotCreateFirstMemoryMapping(ref error) => Some(error),
 
 			&CouldNotCreateSecondMemoryMapping(ref error) => Some(error),
-
-			&CouldNotCreateThirdMemoryMapping(ref error) => Some(error),
 
 			&CouldNotLockMemory(ref error) => Some(error),
 

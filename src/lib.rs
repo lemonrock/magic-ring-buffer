@@ -29,7 +29,6 @@ assert_cfg!(target_pointer_width = "64");
 use likely::*;
 use linux_support::file_descriptors::CreationError;
 use linux_support::file_descriptors::memfd::MemoryFileDescriptor;
-use linux_support::memory;
 use linux_support::memory::huge_pages::*;
 use linux_support::memory::mapping::*;
 use linux_support::strings::ConstCStr;
@@ -39,18 +38,27 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Display;
 use std::io;
-use std::mem::forget;
+use std::mem::{forget, size_of};
 use std::num::NonZeroU64;
 use std::ops::*;
 use std::slice::from_raw_parts_mut;
 use std::sync::atomic::*;
 use std::sync::atomic::Ordering::*;
+use std::ptr::{NonNull, drop_in_place};
+use std::marker::PhantomData;
+use linux_support::memory::VirtualAddress;
+use std::rc::Rc;
+use std::cell::UnsafeCell;
 
 
 include!("CompareExchangeOnlyEverIncreasesMonotonicallyOffset.rs");
+include!("LargeRingQueue.rs");
+include!("LargeRingQueueCreationError.rs");
 include!("MagicRingBuffer.rs");
 include!("MirroredMemoryMap.rs");
 include!("MirroredMemoryMapCreationError.rs");
 include!("OnlyEverIncreasesMonotonicallyOffset.rs");
+include!("ReferenceCountedLargeRingQueue.rs");
+include!("ReferenceCountedLargeRingQueueElement.rs");
 include!("Size.rs");
 

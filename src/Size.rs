@@ -14,6 +14,7 @@ impl From<usize> for Size
 		 Self(value as u64)
 	}
 }
+
 impl From<NonZeroU64> for Size
 {
 	#[inline(always)]
@@ -69,5 +70,27 @@ impl Mul<usize> for Size
 	fn mul(self, rhs: usize) -> Self::Output
 	{
 		 Self(self.0 * rhs as u64)
+	}
+}
+
+impl Size
+{
+	const Zero: Self = Self(0);
+	
+	const One: Self = Self(1);
+	
+	/// u64 value.
+	#[inline(always)]
+	pub const fn u64(self) -> u64
+	{
+		self.0
+	}
+	
+	#[inline(always)]
+	fn to_ring_mask(self) -> u64
+	{
+		debug_assert_ne!(self, Self::Zero, "A zero length queue can not have a ring mask");
+		debug_assert_eq!(self.0.checked_next_power_of_two().unwrap_or(0), self.0, "not a power of two");
+		(self - Self::One).into()
 	}
 }

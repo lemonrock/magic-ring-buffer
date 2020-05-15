@@ -6,14 +6,12 @@
 #[repr(C, align(8))]
 struct OnlyEverIncreasesMonotonicallyOffset(u64);
 
-impl Add<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
+impl Into<usize> for OnlyEverIncreasesMonotonicallyOffset
 {
-	type Output = Self;
-
 	#[inline(always)]
-	fn add(self, rhs: NonZeroU64) -> Self::Output
+	fn into(self) -> usize
 	{
-		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs.get())
+		self.0 as usize
 	}
 }
 
@@ -28,12 +26,63 @@ impl Add<Size> for OnlyEverIncreasesMonotonicallyOffset
 	}
 }
 
-impl Into<usize> for OnlyEverIncreasesMonotonicallyOffset
+impl AddAssign<Size> for OnlyEverIncreasesMonotonicallyOffset
 {
 	#[inline(always)]
-	fn into(self) -> usize
+	fn add_assign(&mut self, rhs: Size)
 	{
-		self.0 as usize
+		self.0 += rhs.0
+	}
+}
+
+impl Add<u64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	type Output = Self;
+	
+	#[inline(always)]
+	fn add(self, rhs: u64) -> Self::Output
+	{
+		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs)
+	}
+}
+
+impl AddAssign<u64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	#[inline(always)]
+	fn add_assign(&mut self, rhs: u64)
+	{
+		self.0 += rhs
+	}
+}
+
+impl Add<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	type Output = Self;
+	
+	#[inline(always)]
+	fn add(self, rhs: NonZeroU64) -> Self::Output
+	{
+		OnlyEverIncreasesMonotonicallyOffset(self.0 + rhs.get())
+	}
+}
+
+impl AddAssign<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	#[inline(always)]
+	fn add_assign(&mut self, rhs: NonZeroU64)
+	{
+		self.0 += rhs.get()
+	}
+}
+
+impl BitAnd<u64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	type Output = u64;
+	
+	#[inline(always)]
+	fn bitand(self, rhs: u64) -> Self::Output
+	{
+		self.0 & rhs
 	}
 }
 
@@ -45,16 +94,5 @@ impl Sub<Self> for OnlyEverIncreasesMonotonicallyOffset
 	fn sub(self, rhs: Self) -> Self::Output
 	{
 		Size(self.0 - rhs.0)
-	}
-}
-
-impl Rem<Size> for OnlyEverIncreasesMonotonicallyOffset
-{
-	type Output = Size;
-
-	#[inline(always)]
-	fn rem(self, rhs: Size) -> Self::Output
-	{
-		Size(self.0 % rhs.0)
 	}
 }
