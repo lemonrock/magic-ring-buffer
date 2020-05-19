@@ -6,7 +6,7 @@
 ///
 /// Only works because the size of memory allocated is a power-of-two.
 #[derive(Debug)]
-pub struct LargeRingQueue<Element>
+pub struct LargeRingQueue<Element: LargeRingQueueElement>
 {
 	mapped_memory: MappedMemory,
 	ring_mask: u64,
@@ -16,21 +16,46 @@ pub struct LargeRingQueue<Element>
 	marker: PhantomData<Element>,
 }
 
-impl<Element> Drop for LargeRingQueue<Element>
+impl<Element: LargeRingQueueElement> Drop for LargeRingQueue<Element>
 {
 	#[inline(always)]
 	fn drop(&mut self)
 	{
-		while !self.is_empty()
+		if Element::ElementsAllocatedFromQueueDropWhenQueueIsDropped
 		{
-			let element = unsafe { &mut * self.real_pointer(self.tail) };
-			unsafe { drop_in_place(element) };
-			self.tail += 1;
+			let mut allocated_from_offset = self.allocated_from_offset();
+			while allocated_from_offset != self.tail
+			{
+				let element = unsafe { &mut * self.real_pointer(self.tail) };
+				unsafe { drop_in_place(element) };
+				allocated_from_offset += 1;
+			}
+		}
+		
+		if Element::ElementsLeftOnQueueDropWhenQueueIsDropped
+		{
+			while !self.is_empty()
+			{
+				let element = unsafe { &mut * self.real_pointer(self.tail) };
+				unsafe { drop_in_place(element) };
+				self.tail += 1;
+			}
 		}
 	}
 }
 
-impl<Element: Sized + Copy> LargeRingQueue<Element>
+impl<Element: LargeRingQueueElement> Deref for LargeRingQueue<Element>
+{
+	type Target = MappedMemory;
+	
+	#[inline(always)]
+	fn deref(&self) -> &Self::Target
+	{
+		&self.mapped_memory
+	}
+}
+
+impl<Element: LargeRingQueueElement + Sized + Copy> LargeRingQueue<Element>
 {
 	/// Enqueues and copies.
 	///
@@ -79,19 +104,17 @@ impl<Element: Sized + Copy> LargeRingQueue<Element>
 	}
 }
 
-impl<Element> LargeRingQueue<Element>
+impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 {
 	const ElementSize: u64 = size_of::<Element>() as u64;
 	
 	/// Creates a new queue.
-	///
-	/// `create_full_of_uninitialized_elements` is dangerous!
-	/// It's only really suitable for things like buffer slices (eg `&[u8]`).
-	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64, create_full_of_uninitialized_elements: bool) -> Result<Self, LargeRingQueueCreationError>
+	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64, clamp_to_ideal_maximum_number_of_elements: bool) -> Result<Self, LargeRingQueueCreationError>
 	{
 		use self::LargeRingQueueCreationError::*;
 		
-		let maximum_number_of_elements_power_of_two = ideal_maximum_number_of_elements.get().checked_next_power_of_two().ok_or(MaximumNumberOfElementsRoundedUpToAPowerOfTwoWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
+		let ideal_maximum_number_of_elements = ideal_maximum_number_of_elements.get();
+		let maximum_number_of_elements_power_of_two = ideal_maximum_number_of_elements.checked_next_power_of_two().ok_or(MaximumNumberOfElementsRoundedUpToAPowerOfTwoWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
 		let preferred_buffer_size = maximum_number_of_elements_power_of_two.checked_mul(Self::ElementSize).ok_or(MaximumNumberOfElementsRoundedUpToAPowerOfTwoAndScaledByTheSizeOfEachElementWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
@@ -107,26 +130,27 @@ impl<Element> LargeRingQueue<Element>
 			debug_assert_eq!(buffer_size % Self::ElementSize, 0);
 			let maximum_number_of_elements = buffer_size / Self::ElementSize;
 			debug_assert_eq!(Some(maximum_number_of_elements), maximum_number_of_elements.checked_next_power_of_two());
-			maximum_number_of_elements
+			
+			if clamp_to_ideal_maximum_number_of_elements
+			{
+				ideal_maximum_number_of_elements
+			}
+			else
+			{
+				maximum_number_of_elements
+			}
 		};
 		
 		Ok
 		(
 			Self
 			{
-				mapped_memory,
 				ring_mask: maximum_number_of_elements - 1,
 				tail: OnlyEverIncreasesMonotonicallyOffset::default(),
-				head: if create_full_of_uninitialized_elements
-				{
-					OnlyEverIncreasesMonotonicallyOffset::default() + maximum_number_of_elements
-				}
-				else
-				{
-					OnlyEverIncreasesMonotonicallyOffset::default()
-				},
+				head: Element::Initialization.apply(&mapped_memory, maximum_number_of_elements),
 				maximum_number_of_elements: unsafe { NonZeroU64::new_unchecked(maximum_number_of_elements) },
 				marker: PhantomData,
+				mapped_memory,
 			}
 		)
 	}
@@ -156,6 +180,19 @@ impl<Element> LargeRingQueue<Element>
 		let available = (self.head - self.tail).u64();
 		debug_assert!(available <= self.maximum_number_of_elements.get());
 		available
+	}
+	
+	#[inline(always)]
+	fn allocated_from_offset(&self) -> OnlyEverIncreasesMonotonicallyOffset
+	{
+		if self.is_empty()
+		{
+			self.head
+		}
+		else
+		{
+			self.head - self.maximum_number_of_elements
+		}
 	}
 	
 	/// Enqueues without checking for capacity or copying data.

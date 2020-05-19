@@ -6,13 +6,13 @@
 ///
 /// Not thread safe.
 #[derive(Debug)]
-pub struct ReferenceCountedLargeRingQueueElement<Element>
+pub struct ReferenceCountedLargeRingQueueElement<Element: LargeRingQueueElement>
 {
 	element: NonNull<Element>,
 	reference_counted_large_ring_queue: ReferenceCountedLargeRingQueue<Element>,
 }
 
-impl<Element> Drop for ReferenceCountedLargeRingQueueElement<Element>
+impl<Element: LargeRingQueueElement> Drop for ReferenceCountedLargeRingQueueElement<Element>
 {
 	#[inline(always)]
 	fn drop(&mut self)
@@ -21,7 +21,7 @@ impl<Element> Drop for ReferenceCountedLargeRingQueueElement<Element>
 	}
 }
 
-impl<Element> ReferenceCountedLargeRingQueueElement<Element>
+impl<Element: LargeRingQueueElement> ReferenceCountedLargeRingQueueElement<Element>
 {
 	/// Element.
 	///

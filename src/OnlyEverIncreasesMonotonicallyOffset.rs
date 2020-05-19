@@ -96,3 +96,14 @@ impl Sub<Self> for OnlyEverIncreasesMonotonicallyOffset
 		Size(self.0 - rhs.0)
 	}
 }
+
+impl Sub<NonZeroU64> for OnlyEverIncreasesMonotonicallyOffset
+{
+	type Output = Self;
+
+	#[inline(always)]
+	fn sub(self, rhs: NonZeroU64) -> Self::Output
+	{
+		Self(self.0 - rhs.get())
+	}
+}

@@ -6,26 +6,9 @@
 ///
 /// Not thread safe.
 #[derive(Debug)]
-pub struct ReferenceCountedLargeRingQueue<Element>(Rc<UnsafeCell<LargeRingQueue<Element>>>);
+pub struct ReferenceCountedLargeRingQueue<Element: LargeRingQueueElement>(Rc<UnsafeCell<LargeRingQueue<Element>>>);
 
-impl<Element> ReferenceCountedLargeRingQueue<Element>
-{
-	/// New instance.
-	///
-	/// Suitable for coroutine memory allocators.
-	pub fn new_exact_fit(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes) -> Result<Self, LargeRingQueueCreationError>
-	{
-		Self::new(ideal_maximum_number_of_elements, defaults, 0, true)
-	}
-	
-	/// New instance.
-	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64, create_full_of_uninitialized_elements: bool) -> Result<Self, LargeRingQueueCreationError>
-	{
-		Ok(Self(Rc::new(UnsafeCell::new(LargeRingQueue::new(ideal_maximum_number_of_elements, defaults, inclusive_maximum_bytes_wasted, create_full_of_uninitialized_elements)?))))
-	}
-}
-
-impl<Element> Clone for ReferenceCountedLargeRingQueue<Element>
+impl<Element: LargeRingQueueElement> Clone for ReferenceCountedLargeRingQueue<Element>
 {
 	#[inline(always)]
 	fn clone(&self) -> Self
@@ -34,8 +17,22 @@ impl<Element> Clone for ReferenceCountedLargeRingQueue<Element>
 	}
 }
 
-impl<Element> ReferenceCountedLargeRingQueue<Element>
+impl<Element: LargeRingQueueElement> ReferenceCountedLargeRingQueue<Element>
 {
+	/// New instance.
+	///
+	/// Suitable for coroutine memory allocators.
+	pub fn new_exact_fit(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes) -> Result<Self, LargeRingQueueCreationError>
+	{
+		Self::new(ideal_maximum_number_of_elements, defaults, 0, false)
+	}
+	
+	/// New instance.
+	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64, clamp_to_ideal_maximum_number_of_elements: bool) -> Result<Self, LargeRingQueueCreationError>
+	{
+		Ok(Self(Rc::new(UnsafeCell::new(LargeRingQueue::new(ideal_maximum_number_of_elements, defaults, inclusive_maximum_bytes_wasted, clamp_to_ideal_maximum_number_of_elements)?))))
+	}
+	
 	/// Obtain.
 	#[inline(always)]
 	pub fn obtain<EmptyHandler: FnOnce() -> Error, Error>(&self, empty_handler: EmptyHandler) -> Result<ReferenceCountedLargeRingQueueElement<Element>, Error>

@@ -29,31 +29,39 @@ assert_cfg!(target_pointer_width = "64");
 use likely::*;
 use linux_support::file_descriptors::CreationError;
 use linux_support::file_descriptors::memfd::MemoryFileDescriptor;
+use linux_support::memory::VirtualAddress;
 use linux_support::memory::huge_pages::*;
 use linux_support::memory::mapping::*;
 use linux_support::strings::ConstCStr;
+use std::cell::UnsafeCell;
 use std::error;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Display;
 use std::io;
-use std::mem::{forget, size_of};
+use std::marker::PhantomData;
+use std::mem::{forget, needs_drop};
+use std::mem::size_of;
 use std::num::NonZeroU64;
 use std::ops::*;
+use std::ptr::drop_in_place;
+use std::ptr::NonNull;
+use std::rc::Rc;
 use std::slice::from_raw_parts_mut;
 use std::sync::atomic::*;
 use std::sync::atomic::Ordering::*;
-use std::ptr::{NonNull, drop_in_place};
-use std::marker::PhantomData;
-use linux_support::memory::VirtualAddress;
-use std::rc::Rc;
-use std::cell::UnsafeCell;
+
+
+/// Convenience trait and types to accommodate the lack of const generics in Rust as of May 2020.
+pub mod memory_sizes;
 
 
 include!("CompareExchangeOnlyEverIncreasesMonotonicallyOffset.rs");
 include!("LargeRingQueue.rs");
 include!("LargeRingQueueCreationError.rs");
+include!("LargeRingQueueElement.rs");
+include!("LargeRingQueueInitialization.rs");
 include!("MagicRingBuffer.rs");
 include!("MirroredMemoryMap.rs");
 include!("MirroredMemoryMapCreationError.rs");
