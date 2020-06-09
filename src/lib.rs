@@ -32,7 +32,6 @@ use linux_support::file_descriptors::memfd::MemoryFileDescriptor;
 use linux_support::memory::VirtualAddress;
 use linux_support::memory::huge_pages::*;
 use linux_support::memory::mapping::*;
-use linux_support::strings::ConstCStr;
 use std::cell::UnsafeCell;
 use std::error;
 use std::fmt;
@@ -51,6 +50,7 @@ use std::rc::Rc;
 use std::slice::from_raw_parts_mut;
 use std::sync::atomic::*;
 use std::sync::atomic::Ordering::*;
+use swiss_army_knife::strings::ConstCStr;
 
 
 /// Convenience trait and types to accommodate the lack of const generics in Rust as of May 2020.
