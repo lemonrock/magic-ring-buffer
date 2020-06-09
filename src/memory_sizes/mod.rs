@@ -4,6 +4,7 @@
 
 use super::LargeRingQueueElement;
 use super::LargeRingQueueInitialization;
+use std::panic::RefUnwindSafe;
 
 
 include!("memory_size.rs");
