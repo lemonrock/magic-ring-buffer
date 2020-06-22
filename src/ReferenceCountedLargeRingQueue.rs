@@ -17,6 +17,17 @@ impl<Element: LargeRingQueueElement> Clone for ReferenceCountedLargeRingQueue<El
 	}
 }
 
+impl<Element: LargeRingQueueElement> Deref for ReferenceCountedLargeRingQueue<Element>
+{
+	type Target = LargeRingQueue<Element>;
+	
+	#[inline(always)]
+	fn deref(&self) -> &Self::Target
+	{
+		unsafe { & * self.0.deref().get() }
+	}
+}
+
 impl<Element: LargeRingQueueElement> ReferenceCountedLargeRingQueue<Element>
 {
 	/// New instance.

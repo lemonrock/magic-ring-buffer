@@ -7,7 +7,16 @@ macro_rules! memory_size
 	($name: ident, $size_in_kb: expr) =>
 	{
 		/// Fixed size.
-		pub type $name = [u8; $size_in_kb * 1024];
+		pub struct $name([u8; $size_in_kb * 1024]);
+		
+		impl Debug for $name
+		{
+			#[inline(always)]
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result
+			{
+				write!(f, "{}", stringify!($name))
+			}
+		}
 		
 		impl MemorySize for $name
 		{
