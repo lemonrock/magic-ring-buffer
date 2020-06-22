@@ -3,7 +3,7 @@
 
 
 /// Memory size marker trait.
-pub trait MemorySize: LargeRingQueueElement + Sized + RefUnwindSafe
+pub trait MemorySize: LargeRingQueueElement + Sized + RefUnwindSafe + Send + Sync
 {
 }
 
