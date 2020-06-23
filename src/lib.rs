@@ -41,6 +41,7 @@ use std::fmt::Display;
 use std::io;
 use std::marker::PhantomData;
 use std::mem::forget;
+use std::mem::MaybeUninit;
 use std::mem::needs_drop;
 use std::mem::size_of;
 use std::num::NonZeroU64;

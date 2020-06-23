@@ -18,6 +18,20 @@ macro_rules! memory_size
 			}
 		}
 		
+		impl Clone for $name
+		{
+			#[inline(always)]
+			fn clone(&self) -> Self
+			{
+				let mut uninitialized: MaybeUninit<Self> = MaybeUninit::uninit();
+				unsafe
+				{
+					uninitialized.as_mut_ptr().copy_from_nonoverlapping(self, 1);
+					uninitialized.assume_init()
+				}
+			}
+		}
+		
 		impl MemorySize for $name
 		{
 		}
