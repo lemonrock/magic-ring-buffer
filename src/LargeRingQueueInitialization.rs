@@ -46,9 +46,10 @@ impl<Element: LargeRingQueueElement> LargeRingQueueInitialization<Element>
 				let mut pointer: *mut Element = mapped_memory.virtual_address().into();
 				for index in 0 .. maximum_number_of_elements
 				{
+					let non_null_pointer = new_non_null(pointer);
 					unsafe
 					{
-						initializer(index, NonNull::new_unchecked(pointer));
+						initializer(index, non_null_pointer);
 						pointer = pointer.add(index as usize)
 					}
 				}

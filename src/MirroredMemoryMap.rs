@@ -65,8 +65,8 @@ impl MirroredMemoryMap
 		let (buffer_size, huge_page_size) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(preferred_buffer_size, defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64(preferred_buffer_size))?;
 		let mirror_size = buffer_size.checked_mul(2).ok_or(BufferSizeRequiredMirrorSizeLargerThanTheLargestPowerOfTwoInAnU64(preferred_buffer_size))?;
 		
-		let buffer_length = unsafe { NonZeroU64::new_unchecked(buffer_size) };
-		let mirror_length = unsafe { NonZeroU64::new_unchecked(mirror_size) };
+		let buffer_length = new_non_zero_u64(buffer_size);
+		let mirror_length = new_non_zero_u64(mirror_size);
 		
 		Ok((buffer_length, huge_page_size, mirror_length))
 	}

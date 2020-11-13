@@ -118,9 +118,9 @@ impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 		
 		let preferred_buffer_size = maximum_number_of_elements_power_of_two.checked_mul(Self::ElementSize).ok_or(MaximumNumberOfElementsRoundedUpToAPowerOfTwoAndScaledByTheSizeOfEachElementWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
-		let (buffer_size, huge_page_size) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(unsafe { NonZeroU64::new_unchecked(preferred_buffer_size) }, defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
+		let (buffer_size, huge_page_size) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(new_non_zero_u64(preferred_buffer_size), defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
-		let mapped_memory = MappedMemory::anonymous(unsafe { NonZeroU64::new_unchecked(buffer_size) }, AddressHint::any(), Protection::Inaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateMemoryMapping)?;
+		let mapped_memory = MappedMemory::anonymous(new_non_zero_u64(buffer_size), AddressHint::any(), Protection::Inaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateMemoryMapping)?;
 		
 		Self::lock_memory(&mapped_memory)?;
 		mapped_memory.advise(MemoryAdvice::DontFork).map_err(CouldNotAdviseMemory)?;
@@ -148,7 +148,7 @@ impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 				ring_mask: maximum_number_of_elements - 1,
 				tail: OnlyEverIncreasesMonotonicallyOffset::default(),
 				head: Element::Initialization.apply(&mapped_memory, maximum_number_of_elements),
-				maximum_number_of_elements: unsafe { NonZeroU64::new_unchecked(maximum_number_of_elements) },
+				maximum_number_of_elements: new_non_zero_u64(maximum_number_of_elements),
 				marker: PhantomData,
 				mapped_memory,
 			}
@@ -218,7 +218,7 @@ impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 			return Err(empty_handler())
 		}
 		
-		let value = unsafe { NonNull::new_unchecked(self.real_pointer(self.tail)) };
+		let value = new_non_null(self.real_pointer(self.tail));
 		
 		self.tail += 1;
 		

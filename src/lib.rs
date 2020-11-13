@@ -53,6 +53,8 @@ use std::rc::Rc;
 use std::slice::from_raw_parts_mut;
 use std::sync::atomic::*;
 use std::sync::atomic::Ordering::*;
+use swiss_army_knife::non_zero::new_non_null;
+use swiss_army_knife::non_zero::new_non_zero_u64;
 use swiss_army_knife::strings::ConstCStr;
 
 
