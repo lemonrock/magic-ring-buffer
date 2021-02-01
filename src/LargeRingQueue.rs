@@ -118,9 +118,9 @@ impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 		
 		let preferred_buffer_size = maximum_number_of_elements_power_of_two.checked_mul(Self::ElementSize).ok_or(MaximumNumberOfElementsRoundedUpToAPowerOfTwoAndScaledByTheSizeOfEachElementWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
-		let (buffer_size, huge_page_size) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(new_non_zero_u64(preferred_buffer_size), defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
+		let (buffer_size, page_size_or_huge_page_size_settings) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(new_non_zero_u64(preferred_buffer_size), defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64)?;
 		
-		let mapped_memory = MappedMemory::anonymous(new_non_zero_u64(buffer_size), AddressHint::any(), Protection::Inaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateMemoryMapping)?;
+		let mapped_memory = MappedMemory::anonymous(new_non_zero_u64(buffer_size), AddressHint::any(), Protection::Inaccessible, Sharing::Private, false, false, &page_size_or_huge_page_size_settings).map_err(CouldNotCreateMemoryMapping)?;
 		
 		Self::lock_memory(&mapped_memory)?;
 		mapped_memory.advise(MemoryAdvice::DontFork).map_err(CouldNotAdviseMemory)?;

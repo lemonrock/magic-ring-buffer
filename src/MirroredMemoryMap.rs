@@ -17,17 +17,17 @@ impl MirroredMemoryMap
 	{
 		use self::MirroredMemoryMapCreationError::*;
 
-		let (buffer_length, huge_page_size, mirror_length) = Self::round_up_to_huge_page_size(preferred_buffer_size, defaults, inclusive_maximum_bytes_wasted)?;
-
-		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::any(), Protection::Inaccessible, Sharing::Private, huge_page_size, false, false, &defaults).map_err(CouldNotCreateFirstMemoryMapping)?;
+		let (buffer_length, page_size_or_huge_page_size_settings, mirror_length) = Self::round_up_to_huge_page_size(preferred_buffer_size, defaults, inclusive_maximum_bytes_wasted)?;
+		
+		let mapped_memory = MappedMemory::anonymous(mirror_length, AddressHint::any(), Protection::Inaccessible, Sharing::Private, false, false, &page_size_or_huge_page_size_settings).map_err(CouldNotCreateFirstMemoryMapping)?;
 		
 		const NonUniqueNameForDebuggingPurposes: ConstCStr = ConstCStr(b"mirror\0");
 		const AllowSealingOperations: bool = false;
-		let (memory_file_descriptor, _huge_page_size) = MemoryFileDescriptor::open_anonymous_memory_as_file(NonUniqueNameForDebuggingPurposes.as_cstr(), AllowSealingOperations, huge_page_size, defaults).map_err(CouldNotOpenMemFd)?;
+		let memory_file_descriptor  = MemoryFileDescriptor::open_anonymous_memory_as_file(NonUniqueNameForDebuggingPurposes.as_cstr(), AllowSealingOperations, &page_size_or_huge_page_size_settings).map_err(CouldNotOpenMemFd)?;
 		memory_file_descriptor.set_non_zero_length(buffer_length).map_err(CouldNotSetLength)?;
 		
-		Self::map_file_over_memory_reservation(&memory_file_descriptor, &mapped_memory, 0, buffer_length, huge_page_size, defaults)?;
-		Self::map_file_over_memory_reservation(&memory_file_descriptor, &mapped_memory, buffer_length.get(), buffer_length, huge_page_size, defaults)?;
+		Self::map_file_over_memory_reservation(&memory_file_descriptor, &mapped_memory, 0, buffer_length, &page_size_or_huge_page_size_settings)?;
+		Self::map_file_over_memory_reservation(&memory_file_descriptor, &mapped_memory, buffer_length.get(), buffer_length, &page_size_or_huge_page_size_settings)?;
 
 		Self::lock_memory(&mapped_memory)?;
 		mapped_memory.advise(MemoryAdvice::DontFork).map_err(CouldNotAdviseMemory)?;
@@ -58,26 +58,26 @@ impl MirroredMemoryMap
 	}
 	
 	#[inline(always)]
-	fn round_up_to_huge_page_size(preferred_buffer_size: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64) -> Result<(NonZeroU64, Option<Option<HugePageSize>>, NonZeroU64), MirroredMemoryMapCreationError>
+	fn round_up_to_huge_page_size(preferred_buffer_size: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64) -> Result<(NonZeroU64, PageSizeOrHugePageSizeSettings, NonZeroU64), MirroredMemoryMapCreationError>
 	{
 		use self::MirroredMemoryMapCreationError::*;
 		
-		let (buffer_size, huge_page_size) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(preferred_buffer_size, defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64(preferred_buffer_size))?;
+		let (buffer_size, page_size_or_huge_page_size_settings) = MappedMemory::size_suitable_for_a_power_of_two_ring_queue(preferred_buffer_size, defaults, inclusive_maximum_bytes_wasted).ok_or(BufferSizeWouldBeLargerThanTheLargestPowerOfTwoInAnU64(preferred_buffer_size))?;
 		let mirror_size = buffer_size.checked_mul(2).ok_or(BufferSizeRequiredMirrorSizeLargerThanTheLargestPowerOfTwoInAnU64(preferred_buffer_size))?;
 		
 		let buffer_length = new_non_zero_u64(buffer_size);
 		let mirror_length = new_non_zero_u64(mirror_size);
 		
-		Ok((buffer_length, huge_page_size, mirror_length))
+		Ok((buffer_length, page_size_or_huge_page_size_settings, mirror_length))
 	}
 	
 	#[inline(always)]
-	fn map_file_over_memory_reservation(memory_file_descriptor: &MemoryFileDescriptor, mapped_memory: &MappedMemory, mirror_fragment_offset: u64, buffer_length: NonZeroU64, huge_page_size: Option<Option<HugePageSize>>, defaults: &DefaultPageSizeAndHugePageSizes) -> Result<(), MirroredMemoryMapCreationError>
+	fn map_file_over_memory_reservation(memory_file_descriptor: &MemoryFileDescriptor, mapped_memory: &MappedMemory, mirror_fragment_offset: u64, buffer_length: NonZeroU64, page_size_or_huge_page_size_settings: &PageSizeOrHugePageSizeSettings) -> Result<(), MirroredMemoryMapCreationError>
 	{
 		const NoOffset: u64 = 0;
 		
 		let address_hint = AddressHint::fixed(mapped_memory.virtual_address(), mirror_fragment_offset);
-		let mirror_fragment = MappedMemory::from_file(memory_file_descriptor, NoOffset, buffer_length, address_hint, Protection::ReadWrite, Sharing::Shared, huge_page_size, false, false, defaults).map_err(MirroredMemoryMapCreationError::CouldNotCreateSecondMemoryMapping)?;
+		let mirror_fragment = MappedMemory::from_file(memory_file_descriptor, NoOffset, buffer_length, address_hint, Protection::ReadWrite, Sharing::Shared, false, false, page_size_or_huge_page_size_settings).map_err(MirroredMemoryMapCreationError::CouldNotCreateSecondMemoryMapping)?;
 		forget(mirror_fragment);
 		Ok(())
 	}
