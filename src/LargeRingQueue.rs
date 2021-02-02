@@ -109,7 +109,7 @@ impl<Element: LargeRingQueueElement> LargeRingQueue<Element>
 	const ElementSize: u64 = size_of::<Element>() as u64;
 	
 	/// Creates a new queue.
-	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64, clamp_to_ideal_maximum_number_of_elements: bool) -> Result<Self, LargeRingQueueCreationError>
+	pub fn new(ideal_maximum_number_of_elements: NonZeroU64, defaults: &DefaultHugePageSizes, inclusive_maximum_bytes_wasted: u64, clamp_to_ideal_maximum_number_of_elements: bool) -> Result<Self, LargeRingQueueCreationError>
 	{
 		use self::LargeRingQueueCreationError::*;
 		

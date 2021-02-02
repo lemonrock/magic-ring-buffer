@@ -18,7 +18,7 @@ impl MagicRingBuffer
 	///
 	/// Rounds `preferred_buffer_size` to page size.
 	#[inline(always)]
-	pub fn allocate(defaults: &DefaultPageSizeAndHugePageSizes, preferred_buffer_size: NonZeroU64, inclusive_maximum_bytes_wasted: u64) -> Result<Self, MirroredMemoryMapCreationError>
+	pub fn allocate(defaults: &DefaultHugePageSizes, preferred_buffer_size: NonZeroU64, inclusive_maximum_bytes_wasted: u64) -> Result<Self, MirroredMemoryMapCreationError>
 	{
 		Ok
 		(

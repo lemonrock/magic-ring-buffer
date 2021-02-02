@@ -13,7 +13,7 @@ pub(crate) struct MirroredMemoryMap
 impl MirroredMemoryMap
 {
 	#[inline(always)]
-	pub(crate) fn new(defaults: &DefaultPageSizeAndHugePageSizes, preferred_buffer_size: NonZeroU64, inclusive_maximum_bytes_wasted: u64) -> Result<Self, MirroredMemoryMapCreationError>
+	pub(crate) fn new(defaults: &DefaultHugePageSizes, preferred_buffer_size: NonZeroU64, inclusive_maximum_bytes_wasted: u64) -> Result<Self, MirroredMemoryMapCreationError>
 	{
 		use self::MirroredMemoryMapCreationError::*;
 
@@ -58,7 +58,7 @@ impl MirroredMemoryMap
 	}
 	
 	#[inline(always)]
-	fn round_up_to_huge_page_size(preferred_buffer_size: NonZeroU64, defaults: &DefaultPageSizeAndHugePageSizes, inclusive_maximum_bytes_wasted: u64) -> Result<(NonZeroU64, PageSizeOrHugePageSizeSettings, NonZeroU64), MirroredMemoryMapCreationError>
+	fn round_up_to_huge_page_size(preferred_buffer_size: NonZeroU64, defaults: &DefaultHugePageSizes, inclusive_maximum_bytes_wasted: u64) -> Result<(NonZeroU64, PageSizeOrHugePageSizeSettings, NonZeroU64), MirroredMemoryMapCreationError>
 	{
 		use self::MirroredMemoryMapCreationError::*;
 		
