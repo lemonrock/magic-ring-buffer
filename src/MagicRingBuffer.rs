@@ -65,8 +65,8 @@ impl MagicRingBuffer
 			{
 				break current_unread_offset
 			}
-
-			spin_loop_hint();
+			
+			busy_wait_spin_loop_hint();
 		};
 
 		// Write data.
@@ -80,7 +80,7 @@ impl MagicRingBuffer
 				Ok(()) => break,
 				Err(was_reader_state) => was_reader_state,
 			};
-			spin_loop_hint();
+			busy_wait_spin_loop_hint();
 		}
 	}
 
