@@ -24,4 +24,4 @@ static_assertions = "^1.1"
 [target.'cfg(all(target_os = "linux", target_pointer_width = "64"))'.dependencies]
 likely = { version = "^0.2.0", path = "../likely" }
 linux-support = { version = "^0.0.26", path = "../linux-support" }
-swiss-army-knife = { version = "^0.0.37", path = "../swiss-army-knife" }
+swiss-army-knife = { version = "^0.0.38", path = "../swiss-army-knife" }
